@@ -1,6 +1,6 @@
 def generate_response(intent: str, entities: dict = None) -> str:
     entities = entities or {}
-    target_script = entities.get("target_script", "the current script") # Common entity
+    target_script = entities.get("target_script", "the current script")
 
     if intent == "greeting":
         return "Hello! I'm your app building agent. How can I help you today?"
@@ -27,7 +27,7 @@ def generate_response(intent: str, entities: dict = None) -> str:
         else:
             if not script_name.endswith(".py") and language.lower() == "python": script_name += ".py"
             return f"Alright, I'll start creating the script named '{script_name}'."
-    elif intent == "add_function": # Top-level function
+    elif intent == "add_function":
         func_name = entities.get("function_name", "your_function")
         return f"Okay, I'll add the function '{func_name}' to '{target_script}'."
     elif intent == "add_method_to_class":
@@ -44,25 +44,31 @@ def generate_response(intent: str, entities: dict = None) -> str:
         attr_name = entities.get("attribute_name", "new_attr")
         value_expr = entities.get("value_expression", "None")
         return f"Okay, I'll try to add instance attribute self.{attr_name} = {value_expr} to __init__ of class '{class_name}' in '{target_script}'."
-    elif intent == "add_try_except": # NEW
+    elif intent == "add_decorator": # NEW
         item_name = entities.get("item_name", "target_function_or_method")
-        class_name_context = entities.get("class_name")
-        exception_type = entities.get("exception_type_str", "any exception")
-        target_location_desc = f"method '{item_name}' in class '{class_name_context}'" if class_name_context else f"function '{item_name}'"
-        return f"Okay, I'll try to add a try-except block for '{exception_type}' in {target_location_desc} within '{target_script}'."
+        class_name = entities.get("class_name")
+        decorator_expr = entities.get("decorator_expression", "unknown_decorator")
+        target_desc = f"method '{item_name}' in class '{class_name}'" if class_name else f"function '{item_name}'"
+        return f"Okay, I'll try to add decorator '@{decorator_expr}' to {target_desc} in '{target_script}'."
 
-    elif intent in ["add_print_statement", "add_return_statement", "add_conditional_statement", "add_for_loop", "add_while_loop", "add_file_operation"]:
+    elif intent in ["add_print_statement", "add_return_statement", "add_conditional_statement", "add_for_loop", "add_while_loop", "add_file_operation", "add_try_except"]:
         item_name = entities.get("item_name", entities.get("function_name", "the target function/method"))
         class_name_context = entities.get("class_name")
         action_description = ""
         if intent == "add_print_statement": action_description = f"print '{entities.get('expression', 'something')}'"
         elif intent == "add_return_statement": action_description = f"return '{entities.get('expression', 'something')}'"
-        elif intent == "add_conditional_statement": action_description = "a conditional (if/else) statement"
+        elif intent == "add_conditional_statement": action_description = "a conditional (if/elif/else) statement"
         elif intent == "add_for_loop": action_description = "a for-loop"
         elif intent == "add_while_loop": action_description = "a while-loop"
         elif intent == "add_file_operation":
             file_name = entities.get("filename", "some_file"); mode = entities.get("file_mode", "r"); action_type = entities.get("file_action", {}).get("type", "do something")
             action_description = f"a file operation (open {file_name} mode '{mode}', then {action_type})"
+        elif intent == "add_try_except":
+            exception_type = entities.get("exception_type_str", "any exception")
+            clauses = ["try", "except " + exception_type]
+            if entities.get("else_body_command_descs"): clauses.append("else")
+            if entities.get("finally_body_command_descs"): clauses.append("finally")
+            action_description = f"a {', '.join(clauses)} block"
 
         target_location_desc = f"method '{item_name}' in class '{class_name_context}'" if class_name_context else f"function '{item_name}'"
         return f"Okay, I'll try to add {action_description} to {target_location_desc} within '{target_script}'."
