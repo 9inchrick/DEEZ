@@ -1,5 +1,7 @@
 def generate_response(intent: str, entities: dict = None) -> str:
     entities = entities or {}
+    target_script = entities.get("target_script", "the current script") # Common entity
+
     if intent == "greeting":
         return "Hello! I'm your app building agent. How can I help you today?"
     elif intent == "clarification":
@@ -15,51 +17,65 @@ def generate_response(intent: str, entities: dict = None) -> str:
         elif language.lower() == "python":
             return f"Got it! Switched back to Python mode."
         else:
-            return f"Got it! I'll use {language} for future tasks, though support might be limited." # Generic
-    elif intent == "create_script": # Modify this to be language aware for NLG
+            return f"Got it! I'll use {language} for future tasks, though support might be limited."
+    elif intent == "create_script":
         script_name = entities.get("script_name", "your_script")
-        language = entities.get("current_language", "the current language") # Agent should pass this
+        language = entities.get("current_language", "the current language")
         if language.lower() == "javascript":
             if not script_name.endswith(".js"): script_name += ".js"
             return f"Alright, I'll start creating the JavaScript script named '{script_name}'."
-        else: # Default to Python or other languages
+        else:
             if not script_name.endswith(".py") and language.lower() == "python": script_name += ".py"
             return f"Alright, I'll start creating the script named '{script_name}'."
-    elif intent == "add_function":
+    elif intent == "add_function": # Top-level function
         func_name = entities.get("function_name", "your_function")
-        target_script = entities.get("target_script")
-        if target_script:
-            return f"Okay, I'll add the function '{func_name}' to '{target_script}'."
-        else:
-            return f"Okay, I'll define a function named '{func_name}'. Which script should it go into?"
-    elif intent == "add_print_statement":
-        func_name = entities.get("function_name", "target_function")
-        expr = entities.get("expression", "something")
-        target_script = entities.get("target_script", "the current script")
-        return f"Okay, I'll try to add a statement to print '{expr}' in function '{func_name}' within '{target_script}'."
-    elif intent == "add_return_statement":
-        func_name = entities.get("function_name", "target_function")
-        expr = entities.get("expression", "something")
-        target_script = entities.get("target_script", "the current script")
-        return f"Okay, I'll try to add a statement to return '{expr}' from function '{func_name}' within '{target_script}'."
-    elif intent == "add_import_statement":
-        import_type = entities.get("import_type", "import")
-        target_script = entities.get("target_script", "the current script")
-        import_desc = ""
-        if import_type == "direct_import":
-            modules = ", ".join(entities.get("modules", ["something"]))
-            import_desc = f"`import {modules}`"
-        elif import_type == "from_import":
-            module_name = entities.get("module", "somemodule")
-            names = ", ".join(entities.get("names", ["something"]))
-            import_desc = f"`from {module_name} import {names}`"
-        else:
-            import_desc = "the specified import"
-        return f"Okay, I'll try to add {import_desc} to '{target_script}'."
+        return f"Okay, I'll add the function '{func_name}' to '{target_script}'."
+    elif intent == "add_method_to_class":
+        class_name = entities.get("class_name", "TargetClass")
+        method_name = entities.get("method_name", "new_method")
+        return f"Okay, I'll try to add method '{method_name}' to class '{class_name}' in '{target_script}'."
+    elif intent == "add_class_attribute":
+        class_name = entities.get("class_name", "TargetClass")
+        attr_name = entities.get("attribute_name", "new_attribute")
+        value_expr = entities.get("value_expression", "None")
+        return f"Okay, I'll try to add attribute {attr_name} = {value_expr} to class '{class_name}' in '{target_script}'."
+    elif intent == "add_instance_attribute":
+        class_name = entities.get("class_name", "TargetClass")
+        attr_name = entities.get("attribute_name", "new_attr")
+        value_expr = entities.get("value_expression", "None")
+        return f"Okay, I'll try to add instance attribute self.{attr_name} = {value_expr} to __init__ of class '{class_name}' in '{target_script}'."
+    elif intent == "add_try_except": # NEW
+        item_name = entities.get("item_name", "target_function_or_method")
+        class_name_context = entities.get("class_name")
+        exception_type = entities.get("exception_type_str", "any exception")
+        target_location_desc = f"method '{item_name}' in class '{class_name_context}'" if class_name_context else f"function '{item_name}'"
+        return f"Okay, I'll try to add a try-except block for '{exception_type}' in {target_location_desc} within '{target_script}'."
+
+    elif intent in ["add_print_statement", "add_return_statement", "add_conditional_statement", "add_for_loop", "add_while_loop", "add_file_operation"]:
+        item_name = entities.get("item_name", entities.get("function_name", "the target function/method"))
+        class_name_context = entities.get("class_name")
+        action_description = ""
+        if intent == "add_print_statement": action_description = f"print '{entities.get('expression', 'something')}'"
+        elif intent == "add_return_statement": action_description = f"return '{entities.get('expression', 'something')}'"
+        elif intent == "add_conditional_statement": action_description = "a conditional (if/else) statement"
+        elif intent == "add_for_loop": action_description = "a for-loop"
+        elif intent == "add_while_loop": action_description = "a while-loop"
+        elif intent == "add_file_operation":
+            file_name = entities.get("filename", "some_file"); mode = entities.get("file_mode", "r"); action_type = entities.get("file_action", {}).get("type", "do something")
+            action_description = f"a file operation (open {file_name} mode '{mode}', then {action_type})"
+
+        target_location_desc = f"method '{item_name}' in class '{class_name_context}'" if class_name_context else f"function '{item_name}'"
+        return f"Okay, I'll try to add {action_description} to {target_location_desc} within '{target_script}'."
+
     elif intent == "create_class_statement":
         class_name = entities.get("class_name", "SomeClass")
-        target_script = entities.get("target_script", "the current script")
         return f"Okay, I'll try to create an empty class named '{class_name}' in '{target_script}'."
+    elif intent == "add_import_statement":
+        import_type = entities.get("import_type", "import"); import_desc = ""
+        if import_type == "direct_import": import_desc = f"`import {', '.join(entities.get('modules', ['something']))}`"
+        elif import_type == "from_import": import_desc = f"`from {entities.get('module', 'somemodule')} import {', '.join(entities.get('names', ['something']))}`"
+        else: import_desc = "the specified import"
+        return f"Okay, I'll try to add {import_desc} to '{target_script}'."
     else:
         return "I'm processing your request."
 
