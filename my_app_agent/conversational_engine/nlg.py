@@ -44,7 +44,7 @@ def generate_response(intent: str, entities: dict = None) -> str:
         attr_name = entities.get("attribute_name", "new_attr")
         value_expr = entities.get("value_expression", "None")
         return f"Okay, I'll try to add instance attribute self.{attr_name} = {value_expr} to __init__ of class '{class_name}' in '{target_script}'."
-    elif intent == "add_decorator": # NEW
+    elif intent == "add_decorator":
         item_name = entities.get("item_name", "target_function_or_method")
         class_name = entities.get("class_name")
         decorator_expr = entities.get("decorator_expression", "unknown_decorator")
@@ -64,7 +64,7 @@ def generate_response(intent: str, entities: dict = None) -> str:
             file_name = entities.get("filename", "some_file"); mode = entities.get("file_mode", "r"); action_type = entities.get("file_action", {}).get("type", "do something")
             action_description = f"a file operation (open {file_name} mode '{mode}', then {action_type})"
         elif intent == "add_try_except":
-            exception_type = entities.get("exception_type_str", "any exception")
+            exception_type = entities.get("exception_type_str") or "any exception" # Handles None for bare except
             clauses = ["try", "except " + exception_type]
             if entities.get("else_body_command_descs"): clauses.append("else")
             if entities.get("finally_body_command_descs"): clauses.append("finally")
@@ -75,7 +75,14 @@ def generate_response(intent: str, entities: dict = None) -> str:
 
     elif intent == "create_class_statement":
         class_name = entities.get("class_name", "SomeClass")
-        return f"Okay, I'll try to create an empty class named '{class_name}' in '{target_script}'."
+        base_classes = entities.get("base_classes")
+        loc = f" in script '{target_script}'" if target_script and target_script != "the current script" else ""
+
+        if base_classes:
+            bases_str = ", ".join(base_classes)
+            return f"Okay, I'll try to create class '{class_name}' inheriting from '{bases_str}'{loc}."
+        else:
+            return f"Okay, I'll try to create an empty class named '{class_name}'{loc}."
     elif intent == "add_import_statement":
         import_type = entities.get("import_type", "import"); import_desc = ""
         if import_type == "direct_import": import_desc = f"`import {', '.join(entities.get('modules', ['something']))}`"
